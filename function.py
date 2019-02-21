@@ -16,9 +16,12 @@ load_dotenv()
 LEGENDARY_IDS = [144, 145, 146, 150, 151, 243, 244, 245, 249, 250, 251, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 480, 481, 482, 483, 484, 485, 486, 487, 488, 489, 490, 491, 492, 493, 494, 638, 639, 640, 641, 642, 643, 644, 645, 646, 647, 648, 649 ]
 BASE = 'https://pokeapi.co/api/v2/'
 
-def get_pokemon_data(id):
-    r = requests.get(BASE + 'pokemon/' + id)
-    return r.json()
+def get_pokemon_data(pokemon_species):
+    default_variety = next((v for v in pokemon_species['varieties'] if v['is_default'] is True), None)
+    if default_variety is not None:
+        r = requests.get(default_variety['pokemon']['url'])
+        return r.json()
+    return None
 
 def get_species(id):
     r = requests.get(BASE + 'pokemon-species/' + id)
@@ -59,12 +62,13 @@ def send_email(text, image_url):
     mail.add_content(Content("text/html", f"<img src=\"{image_url}\"\> <br>" + text))
     sg.client.mail.send.post(request_body=mail.get())
     
-def get_text(pokemon, id):
-    if pokemon is None:
-        #TODO ERROR
-        pass
-    species = get_species(pokemon['species']['name'])
-
+def get_text(pokemon, species):
+    if pokemon is None or species is None:
+        raise Exception('Failed to find information for todays Pokemon id')
+    
+    id = species['id']
+        
+    # Get types
     types = ''
     type_count = len(pokemon['types'])
     for i, t in enumerate(pokemon['types']):
@@ -81,18 +85,25 @@ def get_text(pokemon, id):
     color = species['color']['name']
     genus = (next(x for x in species['genera'] if x['language']['name'] == 'en'))['genus']
 
-    text = f'Master Hawksley! Today\'s Pokémon is {name}, the {genus}. {name} is a {color} {types}{is_legendary} Pokemon which stands {height:.2g}m tall and weighs {weight:.2g}kg. {flavor_text}'
+    addresse = os.getenv("TO_WHOM")
+    text = f'{addresse}! Today\'s Pokémon is {name}, the {genus}. {name} is a {color} {types}{is_legendary} Pokemon which stands {height:.2g}m tall and weighs {weight:.2g}kg. {flavor_text}'
     text = ' '.join(text.split()) # single space it all
     return text
 
 def send():
     id = get_pokemon_id()
     print(f'Id is {id}')
-    pokemon = get_pokemon_data(id)
-    name = pokemon['name']
+    
+    pokemon_species = get_species(id)
+    pokemon = get_pokemon_data(pokemon_species)
+    name = pokemon_species['name']
     print(f'Pokemon is {name}')
-    text = get_text(pokemon, id)
+
+    text = get_text(pokemon, pokemon_species)
     print(text)
+    
     sprite_url = pokemon['sprites']['front_default'] if random.random() < 0.9 else pokemon['sprites']['front_shiny']
     send_email(text, sprite_url)
     send_sms(text)
+
+send()
