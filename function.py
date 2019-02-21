@@ -52,8 +52,9 @@ def send_sms(text):
         body=text)
 
 def send_email(text, image_url):
+    # https://sendgrid.com/docs/ui/account-and-settings/api-keys/
     sg = sendgrid.SendGridAPIClient(apikey=os.environ.get('SENDGRID_API_KEY'))
-    from_email = Email("pokedex@arranfrance.com")
+    from_email = Email(os.environ.get('FROM_EMAIl'))
     to_email = Email(os.environ.get('TO_EMAIL'))
     today_long = datetime.datetime.today().strftime('%A %d %B %Y')
     subject = f"Your Daily Pokemon for {today_long}"
@@ -90,6 +91,7 @@ def get_text(pokemon, species):
     text = ' '.join(text.split()) # single space it all
     return text
 
+# This is our handler function
 def send():
     id = get_pokemon_id()
     print(f'Id is {id}')
